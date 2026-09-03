@@ -71,9 +71,16 @@ function setupLogout() {
 }
 
 // ---------- chat ----------
-let socket;
-let typingTimeout;
-const typingUsers = new Map(); // userId -> displayName
+// No WebSocket here: Netlify Functions can't hold a persistent connection,
+// so "live" means polling the server every couple seconds. Everything still
+// goes through our normal session-cookie auth on every request.
+const POLL_INTERVAL_MS = 2000;
+const TYPING_DEBOUNCE_MS = 1500;
+
+let lastMessageId = 0;
+let typingSendTimeout;
+let isCurrentlyTyping = false;
+let pollTimer;
 
 function appendMessage(msg) {
   const wrap = document.getElementById('messages');
@@ -87,12 +94,14 @@ function appendMessage(msg) {
   `;
   wrap.appendChild(div);
   wrap.scrollTop = wrap.scrollHeight;
+  if (msg.id > lastMessageId) lastMessageId = msg.id;
 }
 
 async function loadHistory() {
   const res = await fetch('/api/messages?channel=general&limit=100');
   const data = await res.json();
   document.getElementById('messages').innerHTML = '';
+  lastMessageId = 0;
   (data.messages || []).forEach(appendMessage);
 }
 
@@ -109,9 +118,9 @@ function renderOnline(online) {
     });
 }
 
-function renderTyping() {
+function renderTyping(typingUsers) {
   const el = document.getElementById('typing-indicator');
-  const names = [...typingUsers.values()];
+  const names = typingUsers.map((u) => u.displayName);
   if (names.length === 0) {
     el.textContent = '';
   } else if (names.length === 1) {
@@ -121,49 +130,68 @@ function renderTyping() {
   }
 }
 
+async function poll() {
+  try {
+    const res = await fetch(`/api/chat/poll?afterId=${lastMessageId}`);
+    if (res.status === 401) {
+      window.location.href = '/login.html';
+      return;
+    }
+    const data = await res.json();
+    (data.messages || []).forEach(appendMessage);
+    renderTyping(data.typingUsers || []);
+    renderOnline(data.online || []);
+  } catch (err) {
+    // Transient network hiccup — just try again on the next tick.
+  }
+}
+
+async function sendTyping(isTyping) {
+  if (isTyping === isCurrentlyTyping) return;
+  isCurrentlyTyping = isTyping;
+  try {
+    await fetch('/api/chat/typing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isTyping }),
+    });
+  } catch (err) {
+    // Best-effort; the next poll cycle will still work either way.
+  }
+}
+
 function setupChat() {
-  socket = io();
-
-  socket.on('chat message', (msg) => {
-    appendMessage(msg);
-    typingUsers.delete(msg.author.id);
-    renderTyping();
-  });
-
-  socket.on('presence', ({ online }) => renderOnline(online));
-
-  socket.on('typing', ({ user, isTyping }) => {
-    if (user.id === me.id) return;
-    if (isTyping) typingUsers.set(user.id, user.displayName);
-    else typingUsers.delete(user.id);
-    renderTyping();
-  });
-
-  socket.on('auth-error', () => {
-    window.location.href = '/login.html';
-  });
+  pollTimer = setInterval(poll, POLL_INTERVAL_MS);
+  poll();
 
   const form = document.getElementById('chat-form');
   const input = document.getElementById('chat-input');
 
   input.addEventListener('input', () => {
-    socket.emit('typing', { isTyping: true });
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => socket.emit('typing', { isTyping: false }), 1500);
+    sendTyping(true);
+    clearTimeout(typingSendTimeout);
+    typingSendTimeout = setTimeout(() => sendTyping(false), TYPING_DEBOUNCE_MS);
   });
 
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const content = input.value.trim();
     if (!content) return;
-    socket.emit('chat message', { content }, (response) => {
-      if (response && response.error) {
-        alert(response.error);
-      }
-    });
     input.value = '';
-    clearTimeout(typingTimeout);
-    socket.emit('typing', { isTyping: false });
+    clearTimeout(typingSendTimeout);
+    isCurrentlyTyping = false; // sending a message implies typing has stopped server-side
+
+    const res = await fetch('/api/chat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || 'Could not send message.');
+      return;
+    }
+    appendMessage(data.message);
   });
 }
 
