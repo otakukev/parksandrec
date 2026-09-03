@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parks &amp; Rec Hub — Sign In</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body class="auth-body">
+  <main class="auth-card">
+    <h1>🌲 Parks &amp; Rec Hub</h1>
+    <p class="auth-subtitle">Sign in to chat with your team and see the announcement board.</p>
+    <form id="login-form" autocomplete="on">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" autocomplete="username" required autofocus />
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+      <button type="submit">Sign In</button>
+      <p id="login-error" class="error" hidden></p>
+    </form>
+  </main>
+  <script src="/js/login.js"></script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parks &amp; Rec Hub</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <h1>🌲 Parks &amp; Rec Hub</h1>
+      <div class="whoami">
+        <span id="who-name"></span>
+        <span id="who-role" class="badge"></span>
+        <button id="logout-btn" class="ghost-btn">Sign out</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="chat">💬 Team Chat</button>
+      <button class="tab-btn" data-tab="board">📌 Announcement Board</button>
+      <button class="tab-btn" data-tab="admin" id="admin-tab-btn" hidden>🛠 Manage Users</button>
+    </nav>
+
+    <main class="tab-panels">
+      <!-- CHAT -->
+      <section id="panel-chat" class="panel active">
+        <div class="chat-layout">
+          <div class="chat-main">
+            <div id="messages" class="messages"></div>
+            <div id="typing-indicator" class="typing-indicator"></div>
+            <form id="chat-form" class="chat-form">
+              <input id="chat-input" type="text" placeholder="Message the team… use @name to ping someone" autocomplete="off" maxlength="2000" />
+              <button type="submit">Send</button>
+            </form>
+          </div>
+          <aside class="online-panel">
+            <h2>Online now</h2>
+            <ul id="online-list"></ul>
+          </aside>
+        </div>
+      </section>
+
+      <!-- BOARD -->
+      <section id="panel-board" class="panel">
+        <div id="board-composer-wrap" hidden>
+          <form id="board-form" class="board-form">
+            <input id="board-title" type="text" placeholder="Announcement title" maxlength="200" required />
+            <textarea id="board-content" placeholder="Write the announcement…" rows="3" maxlength="4000" required></textarea>
+            <button type="submit">Post Announcement</button>
+          </form>
+        </div>
+        <div id="board-posts" class="board-posts"></div>
+      </section>
+
+      <!-- ADMIN -->
+      <section id="panel-admin" class="panel">
+        <h2>Create a user</h2>
+        <form id="create-user-form" class="admin-form">
+          <input id="new-username" type="text" placeholder="Username" required />
+          <input id="new-displayname" type="text" placeholder="Display name" required />
+          <input id="new-password" type="password" placeholder="Temporary password (min 8 chars)" minlength="8" required />
+          <select id="new-role">
+            <option value="worker">Worker</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit">Create User</button>
+        </form>
+        <p id="admin-error" class="error" hidden></p>
+
+        <h2>All users</h2>
+        <table class="user-table">
+          <thead><tr><th>Name</th><th>Username</th><th>Role</th><th></th></tr></thead>
+          <tbody id="user-table-body"></tbody>
+        </table>
+      </section>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
