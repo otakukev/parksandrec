@@ -61,17 +61,48 @@ history.
 
 ## Deploying it "live"
 
-This is a stateful Node process (in-memory presence + a local SQLite file),
-so run it as a single long-lived process behind a reverse proxy (nginx,
-Caddy, etc.) that terminates TLS, and set in `.env`:
+This is a stateful Node process (in-memory presence + local SQLite files), so
+it needs a host that runs one persistent process with persistent disk — not
+a serverless platform like Vercel/Netlify, where the filesystem doesn't
+survive between requests and long-lived WebSocket connections get cut.
 
-```
-NODE_ENV=production
-SESSION_SECRET=<a long random string>
-```
+### Deploy on Railway (recommended)
 
-`NODE_ENV=production` makes session cookies `secure` (HTTPS-only), so put a
-TLS-terminating proxy in front of it, or those cookies won't be sent.
+1. **Push this repo to GitHub** (already done — this project lives at
+   `otakukev/parksandrec`).
+2. **Create a project:** at [railway.app](https://railway.app), New Project →
+   *Deploy from GitHub repo* → pick `otakukev/parksandrec` and the branch you
+   want live (e.g. `main` once PR #1 is merged, or the feature branch to
+   preview it first). Railway auto-detects Node via Nixpacks and uses this
+   repo's `Procfile` / `railway.json` (start command `node server.js`,
+   health check `/healthz`).
+3. **Add a persistent volume** (Project → your service → Volumes → *New
+   Volume*): mount path `/data`. Without this, every redeploy wipes all
+   users, chat history, and board posts.
+4. **Set environment variables** (service → Variables):
+   ```
+   NODE_ENV=production
+   DATA_DIR=/data
+   SESSION_SECRET=<generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+   ADMIN_USERNAME=<pick something other than "admin">
+   ADMIN_PASSWORD=<a real password, not the example one>
+   ```
+   Railway supplies `PORT` automatically — the app already reads it.
+5. **Generate a public URL:** service → Settings → Networking → *Generate
+   Domain*. Railway terminates TLS for you, so `NODE_ENV=production`'s
+   secure cookies work out of the box.
+6. **First login:** visit the generated URL, sign in with the
+   `ADMIN_USERNAME` / `ADMIN_PASSWORD` you set, and create real accounts for
+   your team from the "Manage Users" tab.
+7. Every subsequent push to that branch auto-redeploys (data on the volume
+   survives redeploys; it's only wiped if you delete the volume).
+
+### Deploying elsewhere
+
+Same idea on any platform that runs a persistent process with persistent
+disk (Render with a paid disk, Fly.io with a volume, a plain VPS behind
+nginx/Caddy): set `NODE_ENV=production`, a strong `SESSION_SECRET`, and
+point `DATA_DIR` at whatever persistent mount the platform gives you.
 
 ## Project layout
 
@@ -84,4 +115,6 @@ routes/users.js        admin-only user creation + role changes
 routes/board.js       announcement board CRUD (manager/admin write)
 routes/messages.js    chat history REST endpoint
 public/               login page + the chat/board/admin single-page app
+Procfile              process type for Railway/Heroku-style hosts
+railway.json          Railway build/start/health-check config
 ```

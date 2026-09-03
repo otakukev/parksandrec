@@ -4,6 +4,9 @@
   "description": "Parks & Rec team hub: live multi-user chat with @mentions and a manager/admin-only announcement board.",
   "main": "server.js",
   "type": "commonjs",
+  "engines": {
+    "node": ">=20.6.0"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"

@@ -31,7 +31,7 @@ if (isProduction && !process.env.SESSION_SECRET) {
 }
 
 const sessionMiddleware = session({
-  store: new SQLiteStore({ db: 'sessions.sqlite', dir: path.join(__dirname, 'data') }),
+  store: new SQLiteStore({ db: 'sessions.sqlite', dir: db.DATA_DIR }),
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -48,6 +48,9 @@ app.use(sessionMiddleware);
 
 // Share the same session store with socket.io so a live connection knows who's talking.
 io.engine.use(sessionMiddleware);
+
+// Unauthenticated health check for the hosting platform's monitor.
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', requireAuth, usersRouter);
